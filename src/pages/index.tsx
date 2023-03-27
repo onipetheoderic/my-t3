@@ -8,57 +8,70 @@ import { type RouterOutputs } from '../utils/api';
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime"
 import Image from "next/image";
+import { LoadingPage } from "~/components/loading";
 
 dayjs.extend(relativeTime)
 
-const Home: NextPage = () => {
+const CreatePostWizard = () => {
+  const { user } = useUser()
+  if (!user) return null;
+  console.log(user, "the user")
+  return (
+    <div className="flex gap-4 w-full">
+      <Image src={user.profileImageUrl}
+        alt="Profile image"
+        className="w-16 h-16 rounded-full"
+        width={56}
+        height={56}
+      />
+      <input placeholder="Type some emojis" className="bg-transparent grow outline-none" />
+    </div>
+  )
+}
 
-  const CreatePostWizard = () => {
-    const { user } = useUser()
-    if (!user) return null;
-    console.log(user, "the user")
-    return (
-      <div className="flex gap-4 w-full">
-        <Image src={user.profileImageUrl}
-          alt="Profile image"
-          className="w-16 h-16 rounded-full"
-          width={56}
-          height={56}
-        />
-        <input placeholder="Type some emojis" className="bg-transparent grow outline-none" />
-      </div>
-    )
-  }
-
-  type PostWithUser = RouterOutputs["posts"]["getAll"][number]
-
-  const PostView = (props: PostWithUser) => {
-    const { post, author } = props;
-    return (
-      <div key={post.id} className="p-8 border-b border-slate-400 flex gap-3">
-        <Image src={author.profileImageUrl}
-          alt="Profile image"
-          className="w-16 h-16 rounded-full"
-          width={16}
-          height={16}
-        />
-        <div className="flex flex-col">
-          <div className="flex gap-2 text-slate-300">
-            <span>{`@${author.username} `}</span>
-            <span className="font-thin">{` . ${dayjs(post.createdAt).fromNow()}`}</span>
-          </div>
-          <span>{post.content}</span>
+type PostWithUser = RouterOutputs["posts"]["getAll"][number]
+const PostView = (props: PostWithUser) => {
+  const { post, author } = props;
+  return (
+    <div key={post.id} className="p-8 border-b border-slate-400 flex gap-3">
+      <Image src={author.profileImageUrl}
+        alt="Profile image"
+        className="w-16 h-16 rounded-full"
+        width={16}
+        height={16}
+      />
+      <div className="flex flex-col">
+        <div className="flex gap-2 text-slate-300">
+          <span>{`@${author.username} `}</span>
+          <span className="font-thin">{` . ${dayjs(post.createdAt).fromNow()}`}</span>
         </div>
-
+        <span>{post.content}</span>
       </div>
-    )
 
-  }
+    </div>
+  )
+}
 
-  const user = useUser();
-  const { data, isLoading } = api.posts.getAll.useQuery();
-  if (isLoading) return <div>Loading...</div>
-  if (!data) return <div>No Data</div>
+const Feed = () => {
+  const { data, isLoading: postsLoading } = api.posts.getAll.useQuery();
+  if (postsLoading) return <LoadingPage />
+  if (!data) return <div>Something went wrong</div>
+
+  return (
+    <div className="flex flex-col">
+      {[...data, ...data].map((fullPost) => (
+        <PostView key={fullPost.post.id} {...fullPost} />
+      ))}
+    </div>
+  )
+}
+
+const Home: NextPage = () => {
+  const { isLoaded: userLoaded, isSignedIn } = useUser();
+  //To start fetching data Asap
+  api.posts.getAll.useQuery();
+  //return empty div if the user isnt loaded yet
+  if (!userLoaded) return <div />
 
   return (
     <>
@@ -70,15 +83,11 @@ const Home: NextPage = () => {
       <main className="flex h-screen justify-center">
         <div className="w-full border-slate-400 md:max-w-2xl border-x">
           <div className="border-b border-slate-400 p-4 flex">
-            {!user.isSignedIn && <div className="flex justify-center"><SignInButton /></div>}
-            {!!user.isSignedIn && <CreatePostWizard />}
+            {!isSignedIn && <div className="flex justify-center"><SignInButton /></div>}
+            {!!isSignedIn && <CreatePostWizard />}
           </div>
 
-          <div className="flex flex-col">
-            {[...data, ...data].map((fullPost) => (
-              <PostView key={fullPost.post.id} {...fullPost} />
-            ))}
-          </div>
+          <Feed />
         </div>
 
       </main>
